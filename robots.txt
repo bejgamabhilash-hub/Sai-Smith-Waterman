@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://bejgamabhilash-hub.github.io/Sai-Smith-Waterman/sitemap.xml
