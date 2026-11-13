@@ -1,0 +1,360 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sai Smith-Waterman | DNA Local Sequence Alignment Tool</title>
+
+<meta name="description" content="Sai Smith-Waterman is an interactive educational tool for performing DNA local sequence alignment using the Smith-Waterman algorithm. Explore alignment scores, scoring matrices and traceback paths.">
+
+<meta name="keywords" content="Sai Smith-Waterman, Smith-Waterman algorithm, DNA sequence alignment, local sequence alignment, bioinformatics, computational biology">
+
+<meta name="author" content="Sai Smith-Waterman">
+
+<meta name="robots" content="index, follow">
+
+<meta name="theme-color" content="#174a82">
+
+<meta property="og:title" content="Sai Smith-Waterman">
+
+<meta property="og:description" content="Explore DNA local sequence alignment using an interactive Smith-Waterman algorithm tool.">
+
+<meta property="og:type" content="website">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #eef3f9;
+    margin: 0;
+    padding: 25px;
+    color: #243247;
+}
+
+.container {
+    max-width: 1050px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 14px;
+    box-shadow: 0 4px 18px #0002;
+}
+
+h1 {
+    text-align: center;
+    color: #174a82;
+}
+
+.subtitle {
+    text-align: center;
+    color: #64748b;
+}
+
+label {
+    display: block;
+    margin-top: 16px;
+    font-weight: bold;
+}
+
+textarea, input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 7px;
+    border: 1px solid #bdc9d8;
+    border-radius: 7px;
+    font-size: 15px;
+}
+
+textarea {
+    min-height: 75px;
+    resize: vertical;
+}
+
+.scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+button {
+    background: #1769aa;
+    color: white;
+    border: none;
+    padding: 13px 22px;
+    margin-top: 20px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background: #104c7e;
+}
+
+#result {
+    margin-top: 25px;
+}
+
+.result-box {
+    background: #f0f7ff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-top: 15px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+td, th {
+    border: 1px solid #b8c6d8;
+    padding: 9px;
+    text-align: center;
+    min-width: 35px;
+}
+
+th {
+    background: #dceafa;
+}
+
+.highlight {
+    background: #a8e6c1;
+    font-weight: bold;
+}
+
+.alignment {
+    font-family: monospace;
+    font-size: 17px;
+    line-height: 1.8;
+    word-break: break-all;
+}
+
+@media(max-width:650px) {
+    .scores {
+        grid-template-columns: 1fr;
+    }
+    body {
+        padding: 10px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Smith-Waterman Algorithm</h1>
+
+<p class="subtitle">
+DNA Sequence Analysis – Local Sequence Alignment Tool
+</p>
+
+<h3>Enter DNA Sequences</h3>
+
+<label>Sequence 1</label>
+<textarea id="seq1">ACACACTA</textarea>
+
+<label>Sequence 2</label>
+<textarea id="seq2">AGCACACA</textarea>
+
+<h3>Scoring Parameters</h3>
+
+<div class="scores">
+    <div>
+        <label>Match Score</label>
+        <input type="number" id="match" value="2">
+    </div>
+
+    <div>
+        <label>Mismatch Score</label>
+        <input type="number" id="mismatch" value="-1">
+    </div>
+
+    <div>
+        <label>Gap Penalty</label>
+        <input type="number" id="gap" value="-2">
+    </div>
+</div>
+
+<button onclick="runAlignment()">Run Local Alignment</button>
+
+<div id="result"></div>
+
+</div>
+
+<script>
+
+function runAlignment() {
+
+    const a = document.getElementById("seq1").value
+        .toUpperCase().replace(/\s/g, "");
+
+    const b = document.getElementById("seq2").value
+        .toUpperCase().replace(/\s/g, "");
+
+    const match = Number(document.getElementById("match").value);
+    const mismatch = Number(document.getElementById("mismatch").value);
+    const gap = Number(document.getElementById("gap").value);
+
+    const result = document.getElementById("result");
+
+    if (!a || !b) {
+        result.innerHTML = "<p>Please enter both sequences.</p>";
+        return;
+    }
+
+    if (!/^[ACGT]+$/.test(a) || !/^[ACGT]+$/.test(b)) {
+        result.innerHTML = "<p>Please enter valid DNA sequences using A, C, G and T only.</p>";
+        return;
+    }
+
+    if (match <= 0 || mismatch > 0 || gap > 0) {
+        result.innerHTML = "<p>Use a positive match score and non-positive mismatch and gap scores.</p>";
+        return;
+    }
+
+    const rows = a.length + 1;
+    const cols = b.length + 1;
+
+    const dp = Array.from({length: rows}, () => Array(cols).fill(0));
+    const trace = Array.from({length: rows}, () => Array(cols).fill(""));
+
+    let maxScore = 0;
+    let maxI = 0;
+    let maxJ = 0;
+
+    for (let i = 1; i < rows; i++) {
+        for (let j = 1; j < cols; j++) {
+
+            const diagonal = dp[i-1][j-1] +
+                (a[i-1] === b[j-1] ? match : mismatch);
+
+            const up = dp[i-1][j] + gap;
+            const left = dp[i][j-1] + gap;
+
+            const score = Math.max(0, diagonal, up, left);
+
+            dp[i][j] = score;
+
+            if (score === 0) {
+                trace[i][j] = "stop";
+            } else if (score === diagonal) {
+                trace[i][j] = "diagonal";
+            } else if (score === up) {
+                trace[i][j] = "up";
+            } else {
+                trace[i][j] = "left";
+            }
+
+            if (score > maxScore) {
+                maxScore = score;
+                maxI = i;
+                maxJ = j;
+            }
+        }
+    }
+
+    let i = maxI;
+    let j = maxJ;
+
+    let alignedA = "";
+    let alignedB = "";
+    let path = [];
+
+    while (i > 0 && j > 0 && dp[i][j] > 0) {
+
+        path.push([i,j]);
+
+        const direction = trace[i][j];
+
+        if (direction === "diagonal") {
+            alignedA = a[i-1] + alignedA;
+            alignedB = b[j-1] + alignedB;
+            i--;
+            j--;
+        } else if (direction === "up") {
+            alignedA = a[i-1] + alignedA;
+            alignedB = "-" + alignedB;
+            i--;
+        } else if (direction === "left") {
+            alignedA = "-" + alignedA;
+            alignedB = b[j-1] + alignedB;
+            j--;
+        } else {
+            break;
+        }
+    }
+
+    const startA = i + 1;
+    const endA = maxI;
+    const startB = j + 1;
+    const endB = maxJ;
+
+    let matrix = `
+    <h3>Scoring Matrix</h3>
+    <div class="table-wrap">
+    <table>
+    <tr><th></th><th>–</th>`;
+
+    for (const char of b) {
+        matrix += `<th>${char}</th>`;
+    }
+
+    matrix += `</tr>`;
+
+    for (let x = 0; x < rows; x++) {
+        matrix += `<tr><th>${x === 0 ? "–" : a[x-1]}</th>`;
+
+        for (let y = 0; y < cols; y++) {
+            const isPath = path.some(p => p[0] === x && p[1] === y);
+            matrix += `<td class="${isPath ? "highlight" : ""}">${dp[x][y]}</td>`;
+        }
+
+        matrix += `</tr>`;
+    }
+
+    matrix += `</table></div>`;
+
+    let marks = "";
+
+    for (let k = 0; k < alignedA.length; k++) {
+        marks += alignedA[k] === alignedB[k] ? "|" : " ";
+    }
+
+    result.innerHTML = `
+        <div class="result-box">
+            <h3>Maximum Local Alignment Score: ${maxScore}</h3>
+            <h3>Best Local Alignment</h3>
+            <div class="alignment">
+                ${alignedA}<br>
+                ${marks}<br>
+                ${alignedB}
+            </div>
+            <p><b>Sequence 1 positions:</b> ${startA} – ${endA}</p>
+            <p><b>Sequence 2 positions:</b> ${startB} – ${endB}</p>
+            <p><b>Alignment length:</b> ${alignedA.length}</p>
+        </div>
+        ${matrix}
+        <div class="result-box">
+            <h3>Traceback Information</h3>
+            <p>Traceback begins at the highest scoring cell (${maxI}, ${maxJ}) and continues until a cell with score 0 is reached.</p>
+            <p>Green cells indicate the selected local alignment path.</p>
+        </div>
+    `;
+}
+
+</script>
+
+</body>
+</html>
